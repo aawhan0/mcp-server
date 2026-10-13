@@ -160,7 +160,7 @@ def list_training_jobs(
     except Exception as e:
         if runtime and is_k8s_not_found(e):
             return ToolError(
-                error=f"Runtime '{runtime}' not found" if runtime else str(e),
+                error=f"Runtime '{runtime}' not found",
                 error_code=ErrorCode.RESOURCE_NOT_FOUND,
             ).model_dump()
         return ToolError(
@@ -201,15 +201,15 @@ def get_training_job(name: str, namespace: str | None = None) -> dict[str, Any]:
         next_steps: list[str] = []
         if status == "Failed":
             next_steps = [
-                f"get_training_events(name='{name}') â€” check for OOM/scheduling issues",
-                f"get_training_logs(name='{name}') â€” check error output",
+                f"get_training_events(name='{name}') — check for OOM/scheduling issues",
+                f"get_training_logs(name='{name}') — check error output",
                 "Read trainer://guides/troubleshooting",
             ]
         elif status == "Running":
-            next_steps = [f"get_training_logs(name='{name}') â€” check progress"]
+            next_steps = [f"get_training_logs(name='{name}') — check progress"]
         elif status == "Created":
             next_steps = [
-                f"get_training_events(name='{name}') â€” check if scheduling or suspended",
+                f"get_training_events(name='{name}') — check if scheduling or suspended",
             ]
 
         data: dict[str, Any] = {
