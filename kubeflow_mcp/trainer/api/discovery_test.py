@@ -506,7 +506,7 @@ def test_list_runtimes_sdk_error_wrapped():
 
 
 # ---------------------------------------------------------------------------
-# get_training_job — net-new status/next-steps coverage
+# get_training_job â€” net-new status/next-steps coverage
 # ---------------------------------------------------------------------------
 
 
@@ -545,3 +545,47 @@ def test_get_training_job_namespace_not_allowed_short_circuits():
 
     assert result["success"] is False
     assert result["error_code"] == ErrorCode.PERMISSION_DENIED
+
+
+def test_list_training_jobs_runtime_not_found():
+    from kubernetes.client.exceptions import ApiException
+
+    with (
+        patch(
+            "kubeflow_mcp.trainer.api.discovery.check_namespace_allowed",
+            return_value=None,
+        ),
+        patch(
+            "kubeflow_mcp.trainer.api.discovery.get_trainer_client_for_namespace"
+        ) as mock_client_fn,
+    ):
+        mock_client = MagicMock()
+        mock_client.get_runtime.side_effect = ApiException(status=404, reason="Not Found")
+        mock_client_fn.return_value = mock_client
+
+        result = list_training_jobs(runtime="non-existent-runtime")
+
+    assert result["success"] is False
+    assert result["error_code"] == ErrorCode.RESOURCE_NOT_FOUND
+
+
+def test_list_training_jobs_without_runtime_preserves_404_details():
+    from kubernetes.client.exceptions import ApiException
+
+    with (
+        patch(
+            "kubeflow_mcp.trainer.api.discovery.check_namespace_allowed",
+            return_value=None,
+        ),
+        patch(
+            "kubeflow_mcp.trainer.api.discovery.get_trainer_client_for_namespace"
+        ) as mock_client_fn,
+    ):
+        mock_client = MagicMock()
+        mock_client.list_jobs.side_effect = ApiException(status=404, reason="Not Found")
+        mock_client_fn.return_value = mock_client
+
+        result = list_training_jobs()
+
+    assert result["success"] is False
+    assert result["error_code"] == ErrorCode.SDK_ERROR
