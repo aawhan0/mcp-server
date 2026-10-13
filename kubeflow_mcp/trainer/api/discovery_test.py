@@ -471,82 +471,6 @@ def test_list_training_jobs_sdk_error_wrapped_as_tool_error():
     assert result["error_code"] == ErrorCode.SDK_ERROR
 
 
-# ---------------------------------------------------------------------------
-# list_runtimes
-# ---------------------------------------------------------------------------
-
-
-def test_list_runtimes_success():
-    client = MagicMock()
-    client.list_runtimes.return_value = [
-        _fake_runtime("torch-tune"),
-        _fake_runtime("torch-distributed"),
-    ]
-    with patch("kubeflow_mcp.trainer.api.discovery.get_trainer_client", return_value=client):
-        result = list_runtimes()
-    assert result["success"] is True
-    assert result["data"]["total"] == 2
-
-
-def test_list_runtimes_empty_when_none_installed():
-    client = MagicMock()
-    client.list_runtimes.return_value = []
-    with patch("kubeflow_mcp.trainer.api.discovery.get_trainer_client", return_value=client):
-        result = list_runtimes()
-    assert result["data"] == {"runtimes": [], "total": 0}
-
-
-def test_list_runtimes_sdk_error_wrapped():
-    client = MagicMock()
-    client.list_runtimes.side_effect = RuntimeError("api server down")
-    with patch("kubeflow_mcp.trainer.api.discovery.get_trainer_client", return_value=client):
-        result = list_runtimes()
-    assert result["success"] is False
-    assert result["error_code"] == ErrorCode.SDK_ERROR
-
-
-# ---------------------------------------------------------------------------
-# get_training_job â€” net-new status/next-steps coverage
-# ---------------------------------------------------------------------------
-
-
-def test_get_training_job_failed_status_suggests_diagnostics():
-    client = MagicMock()
-    client.get_job.return_value = _fake_job("job-a", status="Failed")
-    with patch(
-        "kubeflow_mcp.trainer.api.discovery.get_trainer_client_for_namespace",
-        return_value=client,
-    ):
-        result = get_training_job("job-a")
-    next_steps = result["data"]["next_steps"]
-    assert any("get_training_events" in step for step in next_steps)
-    assert any("get_training_logs" in step for step in next_steps)
-
-
-def test_get_training_job_complete_status_has_no_next_steps():
-    client = MagicMock()
-    client.get_job.return_value = _fake_job("job-a", status="Complete")
-    with patch(
-        "kubeflow_mcp.trainer.api.discovery.get_trainer_client_for_namespace",
-        return_value=client,
-    ):
-        result = get_training_job("job-a")
-    assert "next_steps" not in result["data"]
-
-
-def test_get_training_job_namespace_not_allowed_short_circuits():
-    from kubeflow_mcp.common.types import ToolError as ToolErrorModel
-
-    with patch(
-        "kubeflow_mcp.trainer.api.discovery.check_namespace_allowed",
-        return_value=ToolErrorModel(error="namespace blocked", error_code="PERMISSION_DENIED"),
-    ):
-        result = get_training_job("job-a", namespace="restricted")
-
-    assert result["success"] is False
-    assert result["error_code"] == ErrorCode.PERMISSION_DENIED
-
-
 def test_list_training_jobs_runtime_not_found():
     from kubernetes.client.exceptions import ApiException
 
@@ -589,3 +513,79 @@ def test_list_training_jobs_without_runtime_preserves_404_details():
 
     assert result["success"] is False
     assert result["error_code"] == ErrorCode.SDK_ERROR
+
+
+# ---------------------------------------------------------------------------
+# list_runtimes
+# ---------------------------------------------------------------------------
+
+
+def test_list_runtimes_success():
+    client = MagicMock()
+    client.list_runtimes.return_value = [
+        _fake_runtime("torch-tune"),
+        _fake_runtime("torch-distributed"),
+    ]
+    with patch("kubeflow_mcp.trainer.api.discovery.get_trainer_client", return_value=client):
+        result = list_runtimes()
+    assert result["success"] is True
+    assert result["data"]["total"] == 2
+
+
+def test_list_runtimes_empty_when_none_installed():
+    client = MagicMock()
+    client.list_runtimes.return_value = []
+    with patch("kubeflow_mcp.trainer.api.discovery.get_trainer_client", return_value=client):
+        result = list_runtimes()
+    assert result["data"] == {"runtimes": [], "total": 0}
+
+
+def test_list_runtimes_sdk_error_wrapped():
+    client = MagicMock()
+    client.list_runtimes.side_effect = RuntimeError("api server down")
+    with patch("kubeflow_mcp.trainer.api.discovery.get_trainer_client", return_value=client):
+        result = list_runtimes()
+    assert result["success"] is False
+    assert result["error_code"] == ErrorCode.SDK_ERROR
+
+
+# ---------------------------------------------------------------------------
+# get_training_job — net-new status/next-steps coverage
+# ---------------------------------------------------------------------------
+
+
+def test_get_training_job_failed_status_suggests_diagnostics():
+    client = MagicMock()
+    client.get_job.return_value = _fake_job("job-a", status="Failed")
+    with patch(
+        "kubeflow_mcp.trainer.api.discovery.get_trainer_client_for_namespace",
+        return_value=client,
+    ):
+        result = get_training_job("job-a")
+    next_steps = result["data"]["next_steps"]
+    assert any("get_training_events" in step for step in next_steps)
+    assert any("get_training_logs" in step for step in next_steps)
+
+
+def test_get_training_job_complete_status_has_no_next_steps():
+    client = MagicMock()
+    client.get_job.return_value = _fake_job("job-a", status="Complete")
+    with patch(
+        "kubeflow_mcp.trainer.api.discovery.get_trainer_client_for_namespace",
+        return_value=client,
+    ):
+        result = get_training_job("job-a")
+    assert "next_steps" not in result["data"]
+
+
+def test_get_training_job_namespace_not_allowed_short_circuits():
+    from kubeflow_mcp.common.types import ToolError as ToolErrorModel
+
+    with patch(
+        "kubeflow_mcp.trainer.api.discovery.check_namespace_allowed",
+        return_value=ToolErrorModel(error="namespace blocked", error_code="PERMISSION_DENIED"),
+    ):
+        result = get_training_job("job-a", namespace="restricted")
+
+    assert result["success"] is False
+    assert result["error_code"] == ErrorCode.PERMISSION_DENIED
